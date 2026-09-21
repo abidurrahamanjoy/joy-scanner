@@ -1,5 +1,5 @@
 // Offline cache. অ্যাপ আপডেট করলে VERSION বদলে দিন।
-const VERSION = "joy-scanner-v2";
+const VERSION = "joy-scanner-v3";
 const FILES = ["./", "./index.html", "./manifest.json", "./icon-192.png", "./icon-512.png"];
 
 self.addEventListener("install", (e) => {
