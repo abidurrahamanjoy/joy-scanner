@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' blob: data:; manifest-src 'self'; worker-src 'self'; connect-src 'none'; form-action 'none'; base-uri 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#0f766e">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Joy Scanner</title>
+<style>
+:root{--bg:#f6f7f5;--card:#ffffff;--ink:#16211f;--muted:#5d6b68;--brand:#0f766e;--brand-ink:#ffffff;--line:#dfe5e2}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1514;--card:#182120;--ink:#e8efed;--muted:#94a5a1;--brand:#2dd4bf;--brand-ink:#04211d;--line:#2a3735}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Noto Sans Bengali","Segoe UI",sans-serif}
+body{padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}
+.wrap{max-width:640px;margin:0 auto;padding:16px}
+h1{font-size:20px;margin:4px 0 2px}
+.sub{color:var(--muted);font-size:14px;margin:0 0 14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:14px}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.btn{flex:1;min-width:140px;border:0;border-radius:12px;padding:14px 12px;font-size:16px;font-weight:600;cursor:pointer;background:var(--brand);color:var(--brand-ink);text-align:center}
+.btn.alt{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.btn:disabled{opacity:.45}
+input[type=file]{display:none}
+.stage{position:relative;background:repeating-conic-gradient(#0001 0 25%,#0000 0 50%) 0 0/16px 16px;border-radius:10px;overflow:hidden;min-height:120px;display:flex;align-items:center;justify-content:center}
+.stage canvas{max-width:100%;height:auto;display:block}
+.empty{color:var(--muted);font-size:15px;padding:40px 16px;text-align:center}
+.seg{display:flex;border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:12px}
+.seg button{flex:1;border:0;background:transparent;color:var(--ink);padding:11px 6px;font-size:15px;cursor:pointer}
+.seg button.on{background:var(--brand);color:var(--brand-ink);font-weight:600}
+label.s{display:block;font-size:14px;margin:10px 0 2px;color:var(--muted)}
+label.s b{color:var(--ink);float:right;font-weight:600}
+input[type=range]{width:100%;accent-color:var(--brand)}
+.chk{display:flex;align-items:center;gap:8px;font-size:15px;margin-top:10px}
+#status{font-size:14px;color:var(--muted);min-height:20px;margin:8px 0 0}
+.hint{font-size:13px;color:var(--muted);margin-top:8px}
+select{width:100%;padding:11px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);font-size:15px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Joy Scanner</h1>
+  <p class="sub">কম আলো ও ঝাপসা ডকুমেন্টের ছবি ক্লিয়ার করুন। ছবি ফোনের বাইরে যায় না।</p>
+
+  <div class="card">
+    <div class="row">
+      <button class="btn" id="camBtn">📷 ছবি তুলুন</button>
+      <button class="btn alt" id="galBtn">🖼️ গ্যালারি থেকে</button>
+    </div>
+    <input type="file" id="camInput" accept="image/*" capture="environment">
+    <input type="file" id="galInput" accept="image/*">
+    <p class="hint">সেরা ফলের জন্য: ডকুমেন্ট সমতল জায়গায় রাখুন এবং ছবিতে ডকুমেন্টই যেন বেশি জায়গা জুড়ে থাকে (দরকারে গ্যালারিতে আগে ক্রপ করে নিন)।</p>
+  </div>
+
+  <div class="card">
+    <div class="stage" id="stage">
+      <div class="empty" id="empty">এখানে ফলাফল দেখা যাবে</div>
+      <canvas id="view" hidden></canvas>
+      <canvas id="orig" hidden></canvas>
+    </div>
+    <p id="status"></p>
+    <div class="row" style="margin-top:10px">
+      <button class="btn alt" id="cmpBtn" disabled>👁️ আগের ছবি (চেপে ধরুন)</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="seg" id="modes">
+      <button data-m="color" class="on">রঙিন</button>
+      <button data-m="gray">ধূসর</button>
+      <button data-m="bw">সাদা-কালো</button>
+    </div>
+    <label class="s">নয়েজ কমানো <b id="dnV">50</b></label>
+    <input type="range" id="dn" min="0" max="1" step="0.05" value="0.5">
+    <label class="s">কনট্রাস্ট (লেখা গাঢ় করা) <b id="ctV">60</b></label>
+    <input type="range" id="ct" min="0" max="1.5" step="0.05" value="0.6">
+    <label class="s">শার্পনেস <b id="shV">60</b></label>
+    <input type="range" id="sh" min="0" max="1.5" step="0.05" value="0.6">
+    <label class="s">রেজোলিউশন (বেশি = বেশি RAM)</label>
+    <select id="q">
+      <option value="1600">হালকা (কম RAM, পুরোনো ফোন)</option>
+      <option value="2400" selected>স্ট্যান্ডার্ড</option>
+      <option value="3200">সর্বোচ্চ (বেশি RAM লাগে)</option>
+    </select>
+    <label class="chk"><input type="checkbox" id="flat" checked> ছায়া ও অসম আলো সমান করুন (ডকুমেন্টের জন্য)</label>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <button class="btn" id="jpgBtn" disabled>⬇️ JPG সেভ</button>
+      <button class="btn" id="pdfBtn" disabled>📄 PDF সেভ</button>
+      <button class="btn alt" id="shareBtn" disabled>↗️ শেয়ার</button>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+let maxSide = 2400;
+let lastFile = null;
+const $ = (id) => document.getElementById(id);
+const view = $("view"), orig = $("orig"), statusEl = $("status");
+let base = null;            // {w,h,data}
+let params = { mode: "color", dn: 0.5, ct: 0.6, sh: 0.6, flat: true };
+let busy = false, pending = false;
+
+const tick = () => new Promise((r) => setTimeout(r, 30));
+const setStatus = (t) => { statusEl.textContent = t; };
+
+/* ---------- image loading ---------- */
+async function loadFile(file) {
+  if (!file) return;
+  lastFile = file;
+  setStatus("ছবি লোড হচ্ছে…");
+  let bmp;
+  try {
+    bmp = await createImageBitmap(file, { imageOrientation: "from-image" });
+  } catch (e) {
+    bmp = await new Promise((res, rej) => {
+      const im = new Image();
+      im.onload = () => res(im);
+      im.onerror = rej;
+      im.src = URL.createObjectURL(file);
+    });
+  }
+  const sw = bmp.width, sh = bmp.height;
+  const f = Math.min(1, maxSide / Math.max(sw, sh));
+  const w = Math.round(sw * f), h = Math.round(sh * f);
+  const c = document.createElement("canvas");
+  c.width = w; c.height = h;
+  const ctx = c.getContext("2d", { willReadFrequently: true });
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(bmp, 0, 0, w, h);
+  if (bmp.close) bmp.close();
+  const id = ctx.getImageData(0, 0, w, h);
+  base = { w, h, data: id.data };
+  $("empty").hidden = true;
+  view.hidden = false;
+  run();
+}
+
+/* ---------- image processing ---------- */
+function boxBlur(a, w, h, r) {
+  const out = new Float32Array(a.length), t = new Float32Array(a.length);
+  const d = 2 * r + 1;
+  for (let y = 0; y < h; y++) {
+    const o = y * w; let s = 0;
+    for (let i = -r; i <= r; i++) s += a[o + Math.min(w - 1, Math.max(0, i))];
+    for (let x = 0; x < w; x++) {
+      t[o + x] = s / d;
+      s += a[o + Math.min(w - 1, x + r + 1)] - a[o + Math.max(0, x - r)];
+    }
+  }
+  for (let x = 0; x < w; x++) {
+    let s = 0;
+    for (let i = -r; i <= r; i++) s += t[Math.min(h - 1, Math.max(0, i)) * w + x];
+    for (let y = 0; y < h; y++) {
+      out[y * w + x] = s / d;
+      s += t[Math.min(h - 1, y + r + 1) * w + x] - t[Math.max(0, y - r) * w + x];
+    }
+  }
+  return out;
+}
+
+// Estimates the paper brightness for every pixel (shadows, uneven light)
+function background(a, w, h) {
+  const B = Math.max(8, Math.round(Math.max(w, h) / 150));
+  const sw = Math.ceil(w / B), sh = Math.ceil(h / B);
+  const s = new Float32Array(sw * sh);
+  for (let y = 0; y < h; y++) {
+    const row = ((y / B) | 0) * sw, o = y * w;
+    for (let x = 0; x < w; x++) {
+      const k = row + ((x / B) | 0), v = a[o + x];
+      if (v > s[k]) s[k] = v;
+    }
+  }
+  const d = new Float32Array(s.length);
+  for (let y = 0; y < sh; y++) for (let x = 0; x < sw; x++) {
+    let m = 0;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      const yy = y + dy, xx = x + dx;
+      if (yy >= 0 && yy < sh && xx >= 0 && xx < sw) {
+        const v = s[yy * sw + xx]; if (v > m) m = v;
+      }
+    }
+    d[y * sw + x] = m;
+  }
+  const g = boxBlur(boxBlur(d, sw, sh, 2), sw, sh, 2);
+  const bg = new Float32Array(w * h);
+  for (let y = 0; y < h; y++) {
+    let gy = (y + 0.5) / B - 0.5; gy = gy < 0 ? 0 : gy > sh - 1 ? sh - 1 : gy;
+    const y0 = gy | 0, y1 = Math.min(sh - 1, y0 + 1), fy = gy - y0;
+    for (let x = 0; x < w; x++) {
+      let gx = (x + 0.5) / B - 0.5; gx = gx < 0 ? 0 : gx > sw - 1 ? sw - 1 : gx;
+      const x0 = gx | 0, x1 = Math.min(sw - 1, x0 + 1), fx = gx - x0;
+      const top = g[y0 * sw + x0] * (1 - fx) + g[y0 * sw + x1] * fx;
+      const bot = g[y1 * sw + x0] * (1 - fx) + g[y1 * sw + x1] * fx;
+      bg[y * w + x] = top * (1 - fy) + bot * fy;
+    }
+  }
+  return bg;
+}
+
+function percentileGain(chs, n) {
+  const hist = new Uint32Array(256);
+  const step = Math.max(1, (n / 200000) | 0);
+  let cnt = 0;
+  for (let i = 0; i < n; i += step) {
+    const y = (chs[0][i] * 0.299 + chs[1][i] * 0.587 + chs[2][i] * 0.114) | 0;
+    hist[y > 255 ? 255 : y]++; cnt++;
+  }
+  let acc = 0, p99 = 255;
+  for (let i = 0; i < 256; i++) { acc += hist[i]; if (acc >= cnt * 0.99) { p99 = Math.max(i, 20); break; } }
+  return Math.min(4, 255 / p99);
+}
+
+function enhance(b, p) {
+  const { w, h, data } = b, n = w * h;
+  const chs = [new Float32Array(n), new Float32Array(n), new Float32Array(n)];
+  for (let i = 0, j = 0; i < n; i++, j += 4) {
+    chs[0][i] = data[j]; chs[1][i] = data[j + 1]; chs[2][i] = data[j + 2];
+  }
+
+  // 1) denoise (light 3x3 blend)
+  if (p.dn > 0) {
+    for (let c = 0; c < 3; c++) {
+      const a = chs[c], bl = boxBlur(a, w, h, 1);
+      for (let i = 0; i < n; i++) a[i] = a[i] * (1 - p.dn) + bl[i] * p.dn;
+    }
+  }
+
+  // 2) lighting: flatten shadows per channel (also fixes color cast) or simple brighten
+  if (p.flat) {
+    for (let c = 0; c < 3; c++) {
+      const a = chs[c], bg = background(a, w, h);
+      for (let i = 0; i < n; i++) {
+        const g = bg[i] < 10 ? 10 : bg[i];
+        const v = (a[i] / g) * 265;
+        a[i] = v > 255 ? 255 : v;
+      }
+    }
+  } else {
+    const gain = percentileGain(chs, n);
+    for (let c = 0; c < 3; c++) {
+      const a = chs[c];
+      for (let i = 0; i < n; i++) { const v = a[i] * gain; a[i] = v > 255 ? 255 : v; }
+    }
+  }
+
+  // 3) sharpen (unsharp mask)
+  if (p.sh > 0) {
+    for (let c = 0; c < 3; c++) {
+      const a = chs[c], bl = boxBlur(a, w, h, 2);
+      for (let i = 0; i < n; i++) {
+        const v = a[i] + p.sh * (a[i] - bl[i]);
+        a[i] = v < 0 ? 0 : v > 255 ? 255 : v;
+      }
+    }
+  }
+
+  // 4) gray conversion
+  if (p.mode !== "color") {
+    for (let i = 0; i < n; i++) {
+      const y = chs[0][i] * 0.299 + chs[1][i] * 0.587 + chs[2][i] * 0.114;
+      chs[0][i] = chs[1][i] = chs[2][i] = y;
+    }
+  }
+
+  // 5) contrast curve / threshold
+  const lut = new Uint8ClampedArray(256);
+  if (p.mode === "bw") {
+    const t = 175 - p.ct * 15;
+    for (let i = 0; i < 256; i++) {
+      let u = (i - (t - 30)) / 60; u = u < 0 ? 0 : u > 1 ? 1 : u;
+      lut[i] = 255 * u * u * (3 - 2 * u);
+    }
+  } else {
+    const gamma = 1 + p.ct * 0.8;
+    for (let i = 0; i < 256; i++) lut[i] = 255 * Math.pow(i / 255, gamma);
+  }
+
+  const out = new ImageData(w, h), o = out.data;
+  for (let i = 0, j = 0; i < n; i++, j += 4) {
+    o[j] = lut[Math.round(chs[0][i])];
+    o[j + 1] = lut[Math.round(chs[1][i])];
+    o[j + 2] = lut[Math.round(chs[2][i])];
+    o[j + 3] = 255;
+  }
+  return out;
+}
+
+async function run() {
+  if (!base) return;
+  if (busy) { pending = true; return; }
+  busy = true;
+  do {
+    pending = false;
+    setStatus("প্রসেসিং হচ্ছে… একটু অপেক্ষা করুন");
+    await tick();
+    try {
+      const out = enhance(base, params);
+      view.width = base.w; view.height = base.h;
+      view.getContext("2d").putImageData(out, 0, 0);
+      setStatus("তৈরি! সেটিং বদলে দেখতে পারেন।");
+      ["jpgBtn", "pdfBtn", "shareBtn", "cmpBtn"].forEach((id) => ($(id).disabled = false));
+    } catch (e) {
+      console.error(e);
+      setStatus("সমস্যা হয়েছে: " + e.message + " (ছোট ছবি দিয়ে চেষ্টা করুন)");
+    }
+  } while (pending);
+  busy = false;
+}
+
+/* ---------- export ---------- */
+const stamp = () => {
+  const d = new Date(), p = (x) => String(x).padStart(2, "0");
+  return `scan_${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
+};
+const toJpegBlob = () => new Promise((res) => view.toBlob(res, "image/jpeg", 0.95));
+
+function download(blob, name) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+
+function makePdf(jpg, w, h) {
+  const enc = new TextEncoder(), parts = [], off = [];
+  let len = 0;
+  const push = (d) => { const u = typeof d === "string" ? enc.encode(d) : d; parts.push(u); len += u.length; };
+  const pw = (w * 72 / 200).toFixed(2), ph = (h * 72 / 200).toFixed(2);
+  push("%PDF-1.4\n");
+  const obj = (n, body) => { off[n] = len; push(`${n} 0 obj\n${body}\nendobj\n`); };
+  obj(1, "<< /Type /Catalog /Pages 2 0 R >>");
+  obj(2, "<< /Type /Pages /Kids [3 0 R] /Count 1 >>");
+  obj(3, `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pw} ${ph}] /Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>`);
+  off[4] = len;
+  push(`4 0 obj\n<< /Type /XObject /Subtype /Image /Width ${w} /Height ${h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpg.length} >>\nstream\n`);
+  push(jpg);
+  push("\nendstream\nendobj\n");
+  const c = `q ${pw} 0 0 ${ph} 0 0 cm /Im0 Do Q`;
+  obj(5, `<< /Length ${c.length} >>\nstream\n${c}\nendstream`);
+  const xr = len;
+  let x = "xref\n0 6\n0000000000 65535 f \n";
+  for (let i = 1; i <= 5; i++) x += String(off[i]).padStart(10, "0") + " 00000 n \n";
+  push(x + `trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xr}\n%%EOF`);
+  const all = new Uint8Array(len);
+  let p = 0;
+  for (const u of parts) { all.set(u, p); p += u.length; }
+  return new Blob([all], { type: "application/pdf" });
+}
+
+/* ---------- offline support ---------- */
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch((e) => console.warn("SW failed", e));
+  });
+}
+
+/* ---------- UI wiring ---------- */
+$("camBtn").onclick = () => $("camInput").click();
+$("galBtn").onclick = () => $("galInput").click();
+$("camInput").onchange = (e) => { loadFile(e.target.files[0]); e.target.value = ""; };
+$("galInput").onchange = (e) => { loadFile(e.target.files[0]); e.target.value = ""; };
+
+document.querySelectorAll("#modes button").forEach((btn) => {
+  btn.onclick = () => {
+    document.querySelectorAll("#modes button").forEach((x) => x.classList.remove("on"));
+    btn.classList.add("on");
+    params.mode = btn.dataset.m;
+    run();
+  };
+});
+[["dn", "dnV"], ["ct", "ctV"], ["sh", "shV"]].forEach(([id, vid]) => {
+  const el = $(id);
+  el.oninput = () => { $(vid).textContent = Math.round(el.value * 100); };
+  el.onchange = () => { params[id] = parseFloat(el.value); run(); };
+});
+$("q").onchange = (e) => { maxSide = parseInt(e.target.value, 10); if (lastFile) loadFile(lastFile); };
+$("flat").onchange = (e) => { params.flat = e.target.checked; run(); };
+
+const cmp = $("cmpBtn");
+const showOrig = (on) => {
+  if (on && base) {
+    orig.width = base.w; orig.height = base.h;
+    orig.getContext("2d").putImageData(new ImageData(base.data, base.w, base.h), 0, 0);
+  } else { orig.width = 0; orig.height = 0; }
+  orig.hidden = !on; view.hidden = on;
+};
+cmp.addEventListener("pointerdown", (e) => { e.preventDefault(); showOrig(true); });
+["pointerup", "pointerleave", "pointercancel"].forEach((ev) => cmp.addEventListener(ev, () => showOrig(false)));
+cmp.addEventListener("contextmenu", (e) => e.preventDefault());
+
+$("jpgBtn").onclick = async () => download(await toJpegBlob(), stamp() + ".jpg");
+$("pdfBtn").onclick = async () => {
+  const jpg = new Uint8Array(await (await toJpegBlob()).arrayBuffer());
+  download(makePdf(jpg, view.width, view.height), stamp() + ".pdf");
+};
+$("shareBtn").onclick = async () => {
+  const blob = await toJpegBlob();
+  const file = new File([blob], stamp() + ".jpg", { type: "image/jpeg" });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file] }); } catch (e) { /* cancelled */ }
+  } else {
+    download(blob, file.name);
+  }
+};
+</script>
+</body>
+</html>
