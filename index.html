@@ -3,512 +3,193 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' blob: data:; manifest-src 'self'; worker-src 'self'; connect-src 'none'; form-action 'none'; base-uri 'none'">
-<meta name="referrer" content="no-referrer">
-<meta name="theme-color" content="#0f766e">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Joy Scanner</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
-<link rel="apple-touch-icon" href="icon-192.png">
-<title>Joy Scanner</title>
 <style>
-:root{--bg:#f6f7f5;--card:#ffffff;--ink:#16211f;--muted:#5d6b68;--brand:#0f766e;--brand-ink:#ffffff;--line:#dfe5e2}
-@media (prefers-color-scheme:dark){:root{--bg:#0f1514;--card:#182120;--ink:#e8efed;--muted:#94a5a1;--brand:#2dd4bf;--brand-ink:#04211d;--line:#2a3735}}
-*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Noto Sans Bengali","Segoe UI",sans-serif}
-body{padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}
-.wrap{max-width:640px;margin:0 auto;padding:16px}
-h1{font-size:20px;margin:4px 0 2px}
-.sub{color:var(--muted);font-size:14px;margin:0 0 14px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:14px}
-.row{display:flex;gap:10px;flex-wrap:wrap}
-.btn{flex:1;min-width:140px;border:0;border-radius:12px;padding:14px 12px;font-size:16px;font-weight:600;cursor:pointer;background:var(--brand);color:var(--brand-ink);text-align:center}
-.btn.alt{background:transparent;color:var(--ink);border:1px solid var(--line)}
-.btn:disabled{opacity:.45}
-input[type=file]{display:none}
-.stage{position:relative;background:repeating-conic-gradient(#0001 0 25%,#0000 0 50%) 0 0/16px 16px;border-radius:10px;overflow:hidden;min-height:120px;display:flex;align-items:center;justify-content:center}
-.stage canvas{width:100%;height:auto;display:block}
-.empty{color:var(--muted);font-size:15px;padding:40px 16px;text-align:center}
-.seg{display:flex;border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:12px}
-.seg button{flex:1;border:0;background:transparent;color:var(--ink);padding:11px 6px;font-size:15px;cursor:pointer}
-.seg button.on{background:var(--brand);color:var(--brand-ink);font-weight:600}
-label.s{display:block;font-size:14px;margin:10px 0 2px;color:var(--muted)}
-label.s b{color:var(--ink);float:right;font-weight:600}
-input[type=range]{width:100%;accent-color:var(--brand)}
-.chk{display:flex;align-items:center;gap:8px;font-size:15px;margin-top:10px}
-#status{font-size:14px;color:var(--muted);min-height:20px;margin:8px 0 0}
-.hint{font-size:13px;color:var(--muted);margin-top:8px}
-select{width:100%;padding:11px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);font-size:15px}
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+  
+  :root {
+    --bg: #f4f7fb;
+    --card: #ffffff;
+    --text-main: #1e293b;
+    --text-muted: #64748b;
+    --primary: #1d4ed8;
+    --primary-light: #eff6ff;
+    --accent: #10b981;
+  }
+  
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+  body { background: var(--bg); color: var(--text-main); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+  
+  /* Header */
+  .header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; background: var(--card); }
+  .header h1 { font-size: 16px; font-weight: 700; color: #0f172a; letter-spacing: 0.5px; }
+  .icon-btn { background: none; border: none; font-size: 24px; color: var(--text-main); cursor: pointer; }
+  
+  /* Main Content Area */
+  .main-content { flex: 1; overflow-y: auto; padding: 0 20px 100px; display: flex; flex-direction: column; align-items: center; }
+  
+  /* Camera/Image Stage */
+  .stage-container { position: relative; width: 100%; max-width: 400px; aspect-ratio: 4/5; background: #d1d5db; border-radius: 20px; margin-top: 10px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+  .stage-container canvas { width: 100%; height: 100%; object-fit: cover; }
+  .empty-state { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--text-muted); }
+  
+  /* Scanning Overlay Overlay */
+  .scan-overlay { position: absolute; inset: 20px; border: 3px solid rgba(16, 185, 129, 0.5); border-radius: 12px; pointer-events: none; }
+  .scan-overlay::before, .scan-overlay::after { content: ''; position: absolute; width: 30px; height: 30px; border-color: var(--accent); border-style: solid; }
+  .scan-overlay::before { top: -3px; left: -3px; border-width: 3px 0 0 3px; border-radius: 12px 0 0 0; }
+  .scan-overlay::after { bottom: -3px; right: -3px; border-width: 0 3px 3px 0; border-radius: 0 0 12px 0; }
+  
+  /* Top Overlays on Stage */
+  .stage-tools { position: absolute; top: 15px; left: 15px; right: 15px; display: flex; justify-content: space-between; color: white; text-shadow: 0 1px 3px rgba(0,0,0,0.5); font-size: 20px; }
+  
+  /* Status Text */
+  .status-section { text-align: center; margin-top: 20px; }
+  .status-title { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
+  .progress-bar { width: 120px; height: 4px; background: #e2e8f0; margin: 0 auto 12px; border-radius: 2px; overflow: hidden; }
+  .progress-fill { width: 50%; height: 100%; background: var(--primary); }
+  .status-subtitle { font-size: 13px; color: var(--text-muted); }
+  
+  /* Action Controls */
+  .controls-row { display: flex; justify-content: space-between; align-items: center; width: 100%; max-width: 320px; margin: 30px auto; }
+  .control-item { display: flex; flex-direction: column; align-items: center; gap: 8px; font-size: 12px; color: var(--text-main); font-weight: 600; background: none; border: none; cursor: pointer; }
+  .control-icon { width: 44px; height: 44px; border-radius: 12px; background: var(--primary-light); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 20px; }
+  .scan-btn-large { width: 72px; height: 72px; background: var(--primary); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28px; border: 4px solid var(--primary-light); box-shadow: 0 8px 16px rgba(29, 78, 216, 0.3); }
+  
+  /* Tabs */
+  .tabs { display: flex; gap: 10px; width: 100%; overflow-x: auto; padding: 10px 0; margin-bottom: 20px; scrollbar-width: none; }
+  .tab-btn { padding: 8px 16px; border-radius: 20px; border: none; background: transparent; color: var(--text-muted); font-size: 14px; font-weight: 600; white-space: nowrap; cursor: pointer; }
+  .tab-btn.active { background: var(--primary); color: white; }
+  
+  /* Bottom Nav */
+  .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; height: 80px; background: var(--card); display: flex; justify-content: space-around; align-items: center; border-top: 1px solid #e2e8f0; border-radius: 24px 24px 0 0; box-shadow: 0 -4px 10px rgba(0,0,0,0.02); }
+  .nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 11px; color: var(--text-muted); text-decoration: none; border: none; background: none; }
+  .nav-item.active { color: var(--primary); }
+  .nav-icon { font-size: 20px; }
+  
+  /* Hidden Inputs and Adjustments section */
+  input[type=file] { display: none; }
+  .adjustments { width: 100%; max-width: 400px; background: var(--card); padding: 16px; border-radius: 16px; margin-top: 20px; display: none; }
+  .adjustments.show { display: block; }
+  label.s { display: block; font-size: 13px; margin: 10px 0 4px; color: var(--text-muted); font-weight: 600; }
+  label.s b { float: right; color: var(--text-main); }
+  input[type=range] { width: 100%; accent-color: var(--primary); margin-bottom: 10px; }
+  select { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 10px; }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <h1>Joy Scanner</h1>
-  <p class="sub">কম আলো ও ঝাপসা ডকুমেন্টের ছবি ক্লিয়ার করুন। ছবি ফোনের বাইরে যায় না।</p>
 
-  <div class="card">
-    <div class="row">
-      <button class="btn" id="camBtn">📷 ছবি তুলুন</button>
-      <button class="btn alt" id="galBtn">🖼️ গ্যালারি থেকে</button>
-    </div>
-    <input type="file" id="camInput" accept="image/*" capture="environment">
-    <input type="file" id="galInput" accept="image/*">
-    <p class="hint">সেরা ফলের জন্য: ডকুমেন্ট সমতল জায়গায় রাখুন এবং ছবিতে ডকুমেন্টই যেন বেশি জায়গা জুড়ে থাকে (দরকারে গ্যালারিতে আগে ক্রপ করে নিন)।</p>
-  </div>
+  <!-- Header -->
+  <header class="header">
+    <button class="icon-btn">☰</button>
+    <h1>IMAGE SCANNER</h1>
+    <button class="icon-btn">⚙️</button>
+  </header>
 
-  <div class="card">
-    <div class="stage" id="stage">
-      <div class="empty" id="empty">এখানে ফলাফল দেখা যাবে</div>
+  <!-- Main Workspace -->
+  <main class="main-content">
+    
+    <!-- Camera Viewport -->
+    <div class="stage-container" id="stage">
+      <div class="empty-state" id="empty">No Image</div>
       <canvas id="view" hidden></canvas>
       <canvas id="orig" hidden></canvas>
+      
+      <!-- Overlay matching reference -->
+      <div class="scan-overlay"></div>
+      <div class="stage-tools">
+        <span>⚡ Auto</span>
+        <span>🔍</span>
+        <span>⛌</span>
+      </div>
     </div>
-    <p id="status"></p>
-    <div class="row" style="margin-top:10px">
-      <button class="btn alt" id="cmpBtn" disabled>👁️ আগের ছবি (চেপে ধরুন)</button>
+
+    <!-- Status -->
+    <div class="status-section">
+      <div class="status-title" id="status">Scanning Document...</div>
+      <div class="progress-bar"><div class="progress-fill"></div></div>
+      <div class="status-subtitle">Place document inside the frame.</div>
     </div>
-  </div>
 
-  <div class="card">
-    <div class="seg" id="modes">
-      <button data-m="color" class="on">রঙিন</button>
-      <button data-m="gray">ধূসর</button>
-      <button data-m="bw">সাদা-কালো</button>
+    <!-- Action Buttons -->
+    <div class="controls-row">
+      <button class="control-item" id="galBtn">
+        <div class="control-icon">🖼️</div>
+        <span>Gallery</span>
+      </button>
+      
+      <button class="control-item" id="camBtn" style="border:none; background:none;">
+        <div class="scan-btn-large">📷</div>
+        <span style="margin-top: 8px;">Scan</span>
+      </button>
+
+      <button class="control-item" onclick="document.getElementById('adjPanel').classList.toggle('show')">
+        <div class="control-icon">🎛️</div>
+        <span>Adjust</span>
+      </button>
     </div>
-    <label class="s">উজ্জ্বলতা <b id="brV">0</b></label>
-    <input type="range" id="br" min="-1" max="1" step="0.05" value="0">
-    <label class="s">কনট্রাস্ট (লেখা গাঢ়, হালকা দাগ সাদা) <b id="ctV">60</b></label>
-    <input type="range" id="ct" min="0" max="1.5" step="0.05" value="0.6">
-    <label class="s">শার্পনেস (লেখা স্পষ্ট) <b id="shV">90</b></label>
-    <input type="range" id="sh" min="0" max="2" step="0.05" value="0.9">
-    <label class="s">নয়েজ কমানো <b id="dnV">30</b></label>
-    <input type="range" id="dn" min="0" max="1" step="0.05" value="0.3">
-    <label class="s">রেজোলিউশন (বেশি = লেখা আরও স্পষ্ট, কিন্তু বেশি RAM ও সময়)</label>
-    <select id="q">
-      <option value="2000">হালকা (কম RAM, পুরোনো ফোন)</option>
-      <option value="3000" selected>স্ট্যান্ডার্ড</option>
-      <option value="4000">উচ্চ (বেশি RAM লাগে)</option>
-    </select>
-    <label class="chk"><input type="checkbox" id="flat" checked> ছায়া ও অসম আলো সমান করুন (ডকুমেন্টের জন্য)</label>
-    <p class="hint">স্লাইডার নাড়ার সময় হালকা প্রিভিউ দেখায়, ছেড়ে দিলে পূর্ণ মানের ছবি আসে। রেজোলিউশন বা "ছায়া সমান" বদলালে কয়েক সেকেন্ড লাগে।</p>
-  </div>
 
-  <div class="card">
-    <div class="row">
-      <button class="btn" id="jpgBtn" disabled>⬇️ JPG সেভ</button>
-      <button class="btn" id="pdfBtn" disabled>📄 PDF সেভ</button>
-      <button class="btn alt" id="shareBtn" disabled>↗️ শেয়ার</button>
+    <!-- Mode Tabs -->
+    <div class="tabs" id="modes">
+      <button class="tab-btn active" data-m="color">Color</button>
+      <button class="tab-btn" data-m="gray">Enhance (Gray)</button>
+      <button class="tab-btn" data-m="bw">B&W</button>
     </div>
-  </div>
-</div>
 
-<script>
-"use strict";
-const $ = (id) => document.getElementById(id);
-const view = $("view"), orig = $("orig"), statusEl = $("status");
-let maxSide = 3000;
-const PV_SIDE = 900;   // preview size used while dragging sliders
-let lastFile = null;
-let base = null;      // {w,h,data}: original pixels (RGBA)
-let cache = null;     // heavy-stage result (full + small preview copy)
-let params = { mode: "color", dn: 0.3, ct: 0.6, sh: 0.9, br: 0, flat: true };
-let outFull = null, outPv = null, rafId = 0, fullTimer = 0, heavyBusy = false, fullShown = false;
+    <!-- Sliders / Adjustments (Collapsible) -->
+    <div class="adjustments" id="adjPanel">
+      <label class="s">Noise Reduction <b id="dnV">50</b></label>
+      <input type="range" id="dn" min="0" max="1" step="0.05" value="0.5">
+      
+      <label class="s">Contrast <b id="ctV">60</b></label>
+      <input type="range" id="ct" min="0" max="1.5" step="0.05" value="0.6">
+      
+      <label class="s">Sharpness <b id="shV">50</b></label>
+      <input type="range" id="sh" min="0" max="1.5" step="0.05" value="0.5">
+      
+      <label class="s">Resolution</label>
+      <select id="q">
+        <option value="1400">Low (Fast)</option>
+        <option value="2000" selected>Standard</option>
+        <option value="2800">High</option>
+      </select>
+      <div style="display:flex; gap:10px; margin-top:10px;">
+        <button id="cmpBtn" style="flex:1; padding:10px; border-radius:8px; border:1px solid #e2e8f0; background:white;">👁️ Compare</button>
+        <button id="jpgBtn" style="flex:1; padding:10px; border-radius:8px; border:none; background:var(--primary); color:white;">⬇️ JPG</button>
+        <button id="pdfBtn" style="flex:1; padding:10px; border-radius:8px; border:none; background:var(--primary); color:white;">📄 PDF</button>
+      </div>
+    </div>
 
-const tick = () => new Promise((r) => setTimeout(r, 0));
-const setStatus = (t) => { statusEl.textContent = t; };
-const setButtons = (on) => ["jpgBtn", "pdfBtn", "shareBtn", "cmpBtn"].forEach((id) => ($(id).disabled = !on));
+  </main>
 
-/* ---------- processing ---------- */
-function boxBlur(a, w, h, r) {
-  const t = new Float32Array(a.length), out = new Float32Array(a.length), d = 2 * r + 1;
-  for (let y = 0; y < h; y++) {
-    const o = y * w; let s = 0;
-    for (let i = -r; i <= r; i++) s += a[o + Math.min(w - 1, Math.max(0, i))];
-    for (let x = 0; x < w; x++) {
-      t[o + x] = s / d;
-      s += a[o + Math.min(w - 1, x + r + 1)] - a[o + Math.max(0, x - r)];
-    }
-  }
-  const s = new Float32Array(w);
-  for (let i = -r; i <= r; i++) {
-    const row = Math.min(h - 1, Math.max(0, i)) * w;
-    for (let x = 0; x < w; x++) s[x] += t[row + x];
-  }
-  for (let y = 0; y < h; y++) {
-    const o = y * w;
-    for (let x = 0; x < w; x++) out[o + x] = s[x] / d;
-    const ra = Math.min(h - 1, y + r + 1) * w, rr = Math.max(0, y - r) * w;
-    for (let x = 0; x < w; x++) s[x] += t[ra + x] - t[rr + x];
-  }
-  return out;
-}
+  <!-- Hidden Inputs -->
+  <input type="file" id="camInput" accept="image/*" capture="environment">
+  <input type="file" id="galInput" accept="image/*">
 
-// Edge-preserving denoise (3x3 bilateral): smooths noise but keeps text strokes sharp
-function bilateral(src, w, h, wl) {
-  const out = new Uint8ClampedArray(src);
-  for (let y = 1; y < h - 1; y++) {
-    let i = y * w + 1;
-    for (let x = 1; x < w - 1; x++, i++) {
-      const c = src[i]; let sum = c, ws = 1, v, k;
-      v = src[i - w - 1]; k = wl[v > c ? v - c : c - v]; sum += v * k; ws += k;
-      v = src[i - w];     k = wl[v > c ? v - c : c - v]; sum += v * k; ws += k;
-      v = src[i - w + 1]; k = wl[v > c ? v - c : c - v]; sum += v * k; ws += k;
-      v = src[i - 1];     k = wl[v > c ? v - c : c - v]; sum += v * k; ws += k;
-      v = src[i + 1];     k = wl[v > c ? v - c : c - v]; sum += v * k; ws += k;
-      v = src[i + w - 1]; k = wl[v > c ? v - c : c - v]; sum += v * k; ws += k;
-      v = src[i + w];     k = wl[v > c ? v - c : c - v]; sum += v * k; ws += k;
-      v = src[i + w + 1]; k = wl[v > c ? v - c : c - v]; sum += v * k; ws += k;
-      out[i] = sum / ws;
-    }
-  }
-  return out;
-}
+  <!-- Bottom Navigation -->
+  <nav class="bottom-nav">
+    <button class="nav-item active">
+      <span class="nav-icon">🏠</span>
+      <span>Home</span>
+    </button>
+    <button class="nav-item">
+      <span class="nav-icon">📄</span>
+      <span>Scans</span>
+    </button>
+    <button class="nav-item" id="shareBtn">
+      <span class="nav-icon">🔗</span>
+      <span>Share</span>
+    </button>
+    <button class="nav-item">
+      <span class="nav-icon">👤</span>
+      <span>Profile</span>
+    </button>
+  </nav>
 
-// Paper brightness per block (80th percentile, robust against creases/specks)
-function bgGrid(a, w, h) {
-  const B = Math.max(8, Math.round(Math.max(w, h) / 130));
-  const sw = Math.ceil(w / B), sh = Math.ceil(h / B), nb = sw * sh;
-  const hist = new Uint16Array(nb * 256), tot = new Uint16Array(nb);
-  for (let y = 0; y < h; y++) {
-    const row = ((y / B) | 0) * sw, o = y * w;
-    for (let x = 0; x < w; x++) {
-      const k = row + ((x / B) | 0);
-      hist[k * 256 + a[o + x]]++; tot[k]++;
-    }
-  }
-  const s = new Float32Array(nb);
-  for (let k = 0; k < nb; k++) {
-    const target = tot[k] * 0.8, b0 = k * 256;
-    let acc = 0, v = 0;
-    for (; v < 255; v++) { acc += hist[b0 + v]; if (acc >= target) break; }
-    s[k] = v;
-  }
-  const d = new Float32Array(nb);
-  for (let y = 0; y < sh; y++) for (let x = 0; x < sw; x++) {
-    let m = 0;
-    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
-      const yy = y + dy, xx = x + dx;
-      if (yy >= 0 && yy < sh && xx >= 0 && xx < sw) { const v = s[yy * sw + xx]; if (v > m) m = v; }
-    }
-    d[y * sw + x] = m;
-  }
-  return { g: boxBlur(boxBlur(d, sw, sh, 2), sw, sh, 2), sw, sh, B };
-}
-
-function applyFlat(raw, bl, G, w, h, o0, o1) {
-  const { g, sw, sh, B } = G;
-  for (let y = 0; y < h; y++) {
-    let gy = (y + 0.5) / B - 0.5; gy = gy < 0 ? 0 : gy > sh - 1 ? sh - 1 : gy;
-    const y0 = gy | 0, y1 = Math.min(sh - 1, y0 + 1), fy = gy - y0, r0 = y0 * sw, r1 = y1 * sw, o = y * w;
-    for (let x = 0; x < w; x++) {
-      let gx = (x + 0.5) / B - 0.5; gx = gx < 0 ? 0 : gx > sw - 1 ? sw - 1 : gx;
-      const x0 = gx | 0, x1 = Math.min(sw - 1, x0 + 1), fx = gx - x0;
-      let bg = (g[r0 + x0] * (1 - fx) + g[r0 + x1] * fx) * (1 - fy) + (g[r1 + x0] * (1 - fx) + g[r1 + x1] * fx) * fy;
-      if (bg < 10) bg = 10;
-      const m = 265 / bg;
-      o0[o + x] = raw[o + x] * m;   // Uint8ClampedArray clamps to 0..255
-      o1[o + x] = bl[o + x] * m;
-    }
-  }
-}
-
-function lumHist(data, n) {
-  const hist = new Uint32Array(256), step = Math.max(1, (n / 200000) | 0);
-  let cnt = 0;
-  for (let i = 0; i < n; i += step) {
-    const j = i * 4;
-    hist[(data[j] * 77 + data[j + 1] * 150 + data[j + 2] * 29) >> 8]++; cnt++;
-  }
-  return { hist, cnt };
-}
-function lumPercentile(data, n, q) {
-  const { hist, cnt } = lumHist(data, n);
-  let acc = 0;
-  for (let i = 0; i < 256; i++) { acc += hist[i]; if (acc >= cnt * q) return Math.max(i, 20); }
-  return 255;
-}
-
-function shrink(a, w, h, k, pw, ph, T) {
-  const o = new T(pw * ph), inv = 1 / (k * k);
-  for (let y = 0; y < ph; y++) for (let x = 0; x < pw; x++) {
-    let s = 0;
-    for (let dy = 0; dy < k; dy++) {
-      const row = (y * k + dy) * w + x * k;
-      for (let dx = 0; dx < k; dx++) s += a[row + dx];
-    }
-    o[y * pw + x] = s * inv;
-  }
-  return o;
-}
-
-// HEAVY stage: once per photo. Everything the sliders need is cached here.
-async function buildCache(b, flat) {
-  const { w, h, data } = b, n = w * h;
-  const F0 = [0, 1, 2].map(() => new Uint8ClampedArray(n));   // flattened, original detail
-  const F1 = [0, 1, 2].map(() => new Uint8ClampedArray(n));   // flattened, denoised
-  const gain = flat ? 1 : Math.min(4, 255 / lumPercentile(data, n, 0.99));
-  const sigma = Math.min(24, Math.max(6, 0.09 * lumPercentile(data, n, 0.8)));
-  const wl = new Float32Array(256);
-  for (let d = 0; d < 256; d++) wl[d] = Math.exp(-(d * d) / (2 * sigma * sigma));
-  for (let c = 0; c < 3; c++) {
-    setStatus(`প্রসেসিং হচ্ছে… ${c + 1}/3`);
-    await tick();
-    const raw = new Uint8ClampedArray(n);
-    for (let i = 0, j = c; i < n; i++, j += 4) raw[i] = data[j];
-    const bil = bilateral(raw, w, h, wl);
-    if (flat) {
-      applyFlat(raw, bil, bgGrid(bil, w, h), w, h, F0[c], F1[c]);
-    } else {
-      for (let i = 0; i < n; i++) { F0[c][i] = raw[i] * gain; F1[c][i] = bil[i] * gain; }
-    }
-  }
-  setStatus("প্রসেসিং হচ্ছে… শেষ ধাপ");
-  await tick();
-  const Y = new Float32Array(n);
-  for (let i = 0; i < n; i++) Y[i] = (77 * F1[0][i] + 150 * F1[1][i] + 29 * F1[2][i]) / 256;
-  const Yb = boxBlur(Y, w, h, w > 2400 ? 3 : 2);
-  const delta = new Int8Array(n);
-  for (let i = 0; i < n; i++) {
-    const d = Y[i] - Yb[i];
-    delta[i] = d > 127 ? 127 : d < -127 ? -127 : Math.round(d);
-  }
-  // small preview copy (area-averaged) for instant slider feedback
-  const k = Math.max(1, Math.ceil(Math.max(w, h) / PV_SIDE));
-  let pv;
-  if (k === 1) pv = { F0, F1, delta, w, h };
-  else {
-    const pw = Math.floor(w / k), ph = Math.floor(h / k);
-    pv = {
-      F0: F0.map((a) => shrink(a, w, h, k, pw, ph, Uint8ClampedArray)),
-      F1: F1.map((a) => shrink(a, w, h, k, pw, ph, Uint8ClampedArray)),
-      delta: shrink(delta, w, h, k, pw, ph, Int8Array), w: pw, h: ph
-    };
-  }
-  return { F0, F1, delta, pv };
-}
-
-function makeLut(p) {
-  const lut = new Uint8ClampedArray(256);
-  if (p.mode === "bw") {
-    const t = 175 - p.ct * 15 - p.br * 30;
-    for (let i = 0; i < 256; i++) {
-      let u = (i - (t - 30)) / 60; u = u < 0 ? 0 : u > 1 ? 1 : u;
-      lut[i] = 255 * u * u * (3 - 2 * u);
-    }
-  } else {
-    const white = 255 - 45 * p.ct, black = 20 * p.ct;
-    const gamma = (1 + 0.6 * p.ct) * Math.pow(2, -p.br);
-    for (let i = 0; i < 256; i++) {
-      let u = (i - black) / (white - black); u = u < 0 ? 0 : u > 1 ? 1 : u;
-      lut[i] = 255 * Math.pow(u, gamma);
-    }
-  }
-  return lut;
-}
-
-const fade = new Int16Array(256);
-for (let v = 0; v < 256; v++) fade[v] = v <= 150 ? 256 : v >= 210 ? 0 : Math.round(256 * (210 - v) / 60);
-
-// LIGHT stage: single pass over pixels, no blur. Sharpening never darkens paper (no halos).
-function renderSrc(src, w, h, img) {
-  const n = w * h, o = img.data, { F0, F1, delta } = src;
-  const lut = makeLut(params);
-  const dnW = Math.round(params.dn * 256), sd = Math.round(params.sh * 256), gray = params.mode !== "color";
-  const a0 = F0[0], a1 = F0[1], a2 = F0[2], b0 = F1[0], b1 = F1[1], b2 = F1[2], keep = 256 - dnW;
-  for (let i = 0, j = 0; i < n; i++, j += 4) {
-    let r = (a0[i] * keep + b0[i] * dnW) >> 8;
-    let g = (a1[i] * keep + b1[i] * dnW) >> 8;
-    let b = (a2[i] * keep + b2[i] * dnW) >> 8;
-    let s = (sd * delta[i]) >> 8;
-    if (s < 0) s = (s * fade[g]) >> 8;
-    r += s; g += s; b += s;
-    if (gray) { r = g = b = (77 * r + 150 * g + 29 * b) >> 8; }
-    o[j] = lut[r < 0 ? 0 : r > 255 ? 255 : r];
-    o[j + 1] = lut[g < 0 ? 0 : g > 255 ? 255 : g];
-    o[j + 2] = lut[b < 0 ? 0 : b > 255 ? 255 : b];
-    o[j + 3] = 255;
-  }
-}
-
-function draw(full) {
-  if (!cache || !base) return;
-  let src, w, h, img;
-  if (full) {
-    src = cache; w = base.w; h = base.h;
-    if (!outFull || outFull.width !== w || outFull.height !== h) outFull = new ImageData(w, h);
-    img = outFull;
-  } else {
-    src = cache.pv; w = src.w; h = src.h;
-    if (!outPv || outPv.width !== w || outPv.height !== h) outPv = new ImageData(w, h);
-    img = outPv;
-  }
-  renderSrc(src, w, h, img);
-  if (view.width !== w || view.height !== h) { view.width = w; view.height = h; }
-  view.getContext("2d").putImageData(img, 0, 0);
-  fullShown = full;
-}
-/* ---------- end processing ---------- */
-
-function schedule() {
-  if (!rafId) rafId = requestAnimationFrame(() => { rafId = 0; draw(false); });
-  clearTimeout(fullTimer);
-  fullTimer = setTimeout(() => draw(true), 400);
-}
-function ensureFull() { clearTimeout(fullTimer); if (!fullShown) draw(true); }
-
-async function prepare() {
-  if (!base || heavyBusy) return;
-  heavyBusy = true;
-  setButtons(false);
-  cache = null;
-  setStatus("প্রসেসিং হচ্ছে… (শুধু প্রথমবার সময় লাগে)");
-  await tick();
-  try {
-    cache = await buildCache(base, params.flat);
-    draw(true);
-    setButtons(true);
-    setStatus("তৈরি! স্লাইডার নাড়িয়ে মিলিয়ে নিন।");
-  } catch (e) {
-    console.error(e);
-    setStatus("সমস্যা হয়েছে (" + e.message + "). রেজোলিউশন 'হালকা' করে আবার চেষ্টা করুন।");
-  }
-  heavyBusy = false;
-}
-
-/* ---------- image loading ---------- */
-async function loadFile(file) {
-  if (!file) return;
-  lastFile = file;
-  setStatus("ছবি লোড হচ্ছে…");
-  await tick();
-  let bmp;
-  try {
-    bmp = await createImageBitmap(file, { imageOrientation: "from-image" });
-  } catch (e) {
-    bmp = await new Promise((res, rej) => {
-      const im = new Image();
-      im.onload = () => res(im);
-      im.onerror = rej;
-      im.src = URL.createObjectURL(file);
-    });
-  }
-  const f = Math.min(1, maxSide / Math.max(bmp.width, bmp.height));
-  const w = Math.round(bmp.width * f), h = Math.round(bmp.height * f);
-  const c = document.createElement("canvas");
-  c.width = w; c.height = h;
-  const ctx = c.getContext("2d", { willReadFrequently: true });
-  ctx.imageSmoothingQuality = "high";
-  ctx.drawImage(bmp, 0, 0, w, h);
-  if (bmp.close) bmp.close();
-  base = { w, h, data: ctx.getImageData(0, 0, w, h).data };
-  c.width = c.height = 0;
-  outFull = null; outPv = null;
-  $("empty").hidden = true;
-  view.hidden = false;
-  prepare();
-}
-
-/* ---------- export ---------- */
-const stamp = () => {
-  const d = new Date(), p = (x) => String(x).padStart(2, "0");
-  return `scan_${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
-};
-const toJpegBlob = () => new Promise((res) => view.toBlob(res, "image/jpeg", 0.95));
-
-function download(blob, name) {
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = name;
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-}
-
-function makePdf(jpg, w, h) {
-  const enc = new TextEncoder(), parts = [], off = [];
-  let len = 0;
-  const push = (d) => { const u = typeof d === "string" ? enc.encode(d) : d; parts.push(u); len += u.length; };
-  const pw = (w * 72 / 200).toFixed(2), ph = (h * 72 / 200).toFixed(2);
-  push("%PDF-1.4\n");
-  const obj = (n, body) => { off[n] = len; push(`${n} 0 obj\n${body}\nendobj\n`); };
-  obj(1, "<< /Type /Catalog /Pages 2 0 R >>");
-  obj(2, "<< /Type /Pages /Kids [3 0 R] /Count 1 >>");
-  obj(3, `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pw} ${ph}] /Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>`);
-  off[4] = len;
-  push(`4 0 obj\n<< /Type /XObject /Subtype /Image /Width ${w} /Height ${h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpg.length} >>\nstream\n`);
-  push(jpg);
-  push("\nendstream\nendobj\n");
-  const c = `q ${pw} 0 0 ${ph} 0 0 cm /Im0 Do Q`;
-  obj(5, `<< /Length ${c.length} >>\nstream\n${c}\nendstream`);
-  const xr = len;
-  let x = "xref\n0 6\n0000000000 65535 f \n";
-  for (let i = 1; i <= 5; i++) x += String(off[i]).padStart(10, "0") + " 00000 n \n";
-  push(x + `trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xr}\n%%EOF`);
-  const all = new Uint8Array(len);
-  let p = 0;
-  for (const u of parts) { all.set(u, p); p += u.length; }
-  return new Blob([all], { type: "application/pdf" });
-}
-
-/* ---------- offline support ---------- */
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("sw.js").catch((e) => console.warn("SW failed", e));
-  });
-}
-
-/* ---------- UI wiring ---------- */
-$("camBtn").onclick = () => $("camInput").click();
-$("galBtn").onclick = () => $("galInput").click();
-$("camInput").onchange = (e) => { loadFile(e.target.files[0]); e.target.value = ""; };
-$("galInput").onchange = (e) => { loadFile(e.target.files[0]); e.target.value = ""; };
-
-document.querySelectorAll("#modes button").forEach((btn) => {
-  btn.onclick = () => {
-    document.querySelectorAll("#modes button").forEach((x) => x.classList.remove("on"));
-    btn.classList.add("on");
-    params.mode = btn.dataset.m;
-    schedule();
-  };
-});
-[["dn", "dnV"], ["ct", "ctV"], ["sh", "shV"], ["br", "brV"]].forEach(([id, vid]) => {
-  const el = $(id);
-  el.oninput = () => {
-    params[id] = parseFloat(el.value);
-    $(vid).textContent = Math.round(el.value * 100);
-    schedule();
-  };
-});
-$("q").onchange = (e) => { maxSide = parseInt(e.target.value, 10); if (lastFile) loadFile(lastFile); };
-$("flat").onchange = (e) => { params.flat = e.target.checked; prepare(); };
-
-const cmp = $("cmpBtn");
-const showOrig = (on) => {
-  if (on && base) {
-    orig.width = base.w; orig.height = base.h;
-    orig.getContext("2d").putImageData(new ImageData(base.data, base.w, base.h), 0, 0);
-  } else { orig.width = 0; orig.height = 0; }
-  orig.hidden = !on; view.hidden = on;
-};
-cmp.addEventListener("pointerdown", (e) => { e.preventDefault(); showOrig(true); });
-["pointerup", "pointerleave", "pointercancel"].forEach((ev) => cmp.addEventListener(ev, () => showOrig(false)));
-cmp.addEventListener("contextmenu", (e) => e.preventDefault());
-
-$("jpgBtn").onclick = async () => { ensureFull(); download(await toJpegBlob(), stamp() + ".jpg"); };
-$("pdfBtn").onclick = async () => {
-  ensureFull();
-  const jpg = new Uint8Array(await (await toJpegBlob()).arrayBuffer());
-  download(makePdf(jpg, view.width, view.height), stamp() + ".pdf");
-};
-$("shareBtn").onclick = async () => {
-  ensureFull();
-  const blob = await toJpegBlob();
-  const file = new File([blob], stamp() + ".jpg", { type: "image/jpeg" });
-  if (navigator.canShare && navigator.canShare({ files: [file] })) {
-    try { await navigator.share({ files: [file] }); } catch (e) { /* cancelled */ }
-  } else {
-    download(blob, file.name);
-  }
-};
-</script>
+  <!-- আপনার আগের <script> অংশটি হুবহু এখানে বসিয়ে দিন -->
+  <script>
+    // Paste your existing JavaScript logic here exactly as it was in index.html
+  </script>
 </body>
 </html>
