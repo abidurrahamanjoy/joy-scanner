@@ -28,7 +28,7 @@ h1{font-size:20px;margin:4px 0 2px}
 .btn:disabled{opacity:.45}
 input[type=file]{display:none}
 .stage{position:relative;background:repeating-conic-gradient(#0001 0 25%,#0000 0 50%) 0 0/16px 16px;border-radius:10px;overflow:hidden;min-height:120px;display:flex;align-items:center;justify-content:center}
-.stage canvas{max-width:100%;height:auto;display:block}
+.stage canvas{width:100%;height:auto;display:block}
 .empty{color:var(--muted);font-size:15px;padding:40px 16px;text-align:center}
 .seg{display:flex;border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:12px}
 .seg button{flex:1;border:0;background:transparent;color:var(--ink);padding:11px 6px;font-size:15px;cursor:pointer}
@@ -75,20 +75,22 @@ select{width:100%;padding:11px;border-radius:10px;border:1px solid var(--line);b
       <button data-m="gray">ধূসর</button>
       <button data-m="bw">সাদা-কালো</button>
     </div>
-    <label class="s">নয়েজ কমানো <b id="dnV">50</b></label>
-    <input type="range" id="dn" min="0" max="1" step="0.05" value="0.5">
-    <label class="s">কনট্রাস্ট (হালকা দাগ সাদা, লেখা গাঢ়) <b id="ctV">60</b></label>
+    <label class="s">উজ্জ্বলতা <b id="brV">0</b></label>
+    <input type="range" id="br" min="-1" max="1" step="0.05" value="0">
+    <label class="s">কনট্রাস্ট (লেখা গাঢ়, হালকা দাগ সাদা) <b id="ctV">60</b></label>
     <input type="range" id="ct" min="0" max="1.5" step="0.05" value="0.6">
-    <label class="s">শার্পনেস <b id="shV">50</b></label>
-    <input type="range" id="sh" min="0" max="1.5" step="0.05" value="0.5">
-    <label class="s">রেজোলিউশন (বেশি = বেশি RAM ও সময়)</label>
+    <label class="s">শার্পনেস (লেখা স্পষ্ট) <b id="shV">90</b></label>
+    <input type="range" id="sh" min="0" max="2" step="0.05" value="0.9">
+    <label class="s">নয়েজ কমানো <b id="dnV">30</b></label>
+    <input type="range" id="dn" min="0" max="1" step="0.05" value="0.3">
+    <label class="s">রেজোলিউশন (বেশি = লেখা আরও স্পষ্ট, কিন্তু বেশি RAM ও সময়)</label>
     <select id="q">
-      <option value="1400">হালকা (কম RAM, পুরোনো ফোন)</option>
-      <option value="2000" selected>স্ট্যান্ডার্ড</option>
-      <option value="2800">উচ্চ (বেশি RAM লাগে)</option>
+      <option value="2000">হালকা (কম RAM, পুরোনো ফোন)</option>
+      <option value="3000" selected>স্ট্যান্ডার্ড</option>
+      <option value="4000">উচ্চ (বেশি RAM লাগে)</option>
     </select>
     <label class="chk"><input type="checkbox" id="flat" checked> ছায়া ও অসম আলো সমান করুন (ডকুমেন্টের জন্য)</label>
-    <p class="hint">স্লাইডার নাড়ালে সঙ্গে সঙ্গে বদলাবে। শুধু ছবি নতুন করে নিলে, রেজোলিউশন বা "ছায়া সমান" বদলালে একটু সময় লাগে।</p>
+    <p class="hint">স্লাইডার নাড়ার সময় হালকা প্রিভিউ দেখায়, ছেড়ে দিলে পূর্ণ মানের ছবি আসে। রেজোলিউশন বা "ছায়া সমান" বদলালে কয়েক সেকেন্ড লাগে।</p>
   </div>
 
   <div class="card">
@@ -104,19 +106,19 @@ select{width:100%;padding:11px;border-radius:10px;border:1px solid var(--line);b
 "use strict";
 const $ = (id) => document.getElementById(id);
 const view = $("view"), orig = $("orig"), statusEl = $("status");
-let maxSide = 2000;
+let maxSide = 3000;
+const PV_SIDE = 900;   // preview size used while dragging sliders
 let lastFile = null;
 let base = null;      // {w,h,data}: original pixels (RGBA)
-let cache = null;     // heavy-stage result: {F0:[3 x u8], F1:[3 x u8], delta:i8}
-let params = { mode: "color", dn: 0.5, ct: 0.6, sh: 0.5, flat: true };
-let outImg = null, rafId = 0, heavyBusy = false;
+let cache = null;     // heavy-stage result (full + small preview copy)
+let params = { mode: "color", dn: 0.3, ct: 0.6, sh: 0.9, br: 0, flat: true };
+let outFull = null, outPv = null, rafId = 0, fullTimer = 0, heavyBusy = false, fullShown = false;
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
 const setStatus = (t) => { statusEl.textContent = t; };
 const setButtons = (on) => ["jpgBtn", "pdfBtn", "shareBtn", "cmpBtn"].forEach((id) => ($(id).disabled = !on));
 
 /* ---------- processing ---------- */
-// Fast separable box blur (row-wise vertical pass = cache friendly)
 function boxBlur(a, w, h, r) {
   const t = new Float32Array(a.length), out = new Float32Array(a.length), d = 2 * r + 1;
   for (let y = 0; y < h; y++) {
@@ -141,8 +143,28 @@ function boxBlur(a, w, h, r) {
   return out;
 }
 
-// Paper brightness per block. Uses the 80th percentile (not max), so bright
-// crease lines / specks do not make their neighbourhood look dark.
+// Edge-preserving denoise (3x3 bilateral): smooths noise but keeps text strokes sharp
+function bilateral(src, w, h, wl) {
+  const out = new Uint8ClampedArray(src);
+  for (let y = 1; y < h - 1; y++) {
+    let i = y * w + 1;
+    for (let x = 1; x < w - 1; x++, i++) {
+      const c = src[i]; let sum = c, ws = 1, v, k;
+      v = src[i - w - 1]; k = wl[v > c ? v - c : c - v]; sum += v * k; ws += k;
+      v = src[i - w];     k = wl[v > c ? v - c : c - v]; sum += v * k; ws += k;
+      v = src[i - w + 1]; k = wl[v > c ? v - c : c - v]; sum += v * k; ws += k;
+      v = src[i - 1];     k = wl[v > c ? v - c : c - v]; sum += v * k; ws += k;
+      v = src[i + 1];     k = wl[v > c ? v - c : c - v]; sum += v * k; ws += k;
+      v = src[i + w - 1]; k = wl[v > c ? v - c : c - v]; sum += v * k; ws += k;
+      v = src[i + w];     k = wl[v > c ? v - c : c - v]; sum += v * k; ws += k;
+      v = src[i + w + 1]; k = wl[v > c ? v - c : c - v]; sum += v * k; ws += k;
+      out[i] = sum / ws;
+    }
+  }
+  return out;
+}
+
+// Paper brightness per block (80th percentile, robust against creases/specks)
 function bgGrid(a, w, h) {
   const B = Math.max(8, Math.round(Math.max(w, h) / 130));
   const sw = Math.ceil(w / B), sh = Math.ceil(h / B), nb = sw * sh;
@@ -151,8 +173,7 @@ function bgGrid(a, w, h) {
     const row = ((y / B) | 0) * sw, o = y * w;
     for (let x = 0; x < w; x++) {
       const k = row + ((x / B) | 0);
-      let v = a[o + x]; v = v > 255 ? 255 : (v + 0.5) | 0;
-      hist[k * 256 + v]++; tot[k]++;
+      hist[k * 256 + a[o + x]]++; tot[k]++;
     }
   }
   const s = new Float32Array(nb);
@@ -162,7 +183,7 @@ function bgGrid(a, w, h) {
     for (; v < 255; v++) { acc += hist[b0 + v]; if (acc >= target) break; }
     s[k] = v;
   }
-  const d = new Float32Array(nb);   // 3x3 max: lets big dark headings borrow paper level
+  const d = new Float32Array(nb);
   for (let y = 0; y < sh; y++) for (let x = 0; x < sw; x++) {
     let m = 0;
     for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
@@ -191,57 +212,92 @@ function applyFlat(raw, bl, G, w, h, o0, o1) {
   }
 }
 
-function autoGain(data, n) {
+function lumHist(data, n) {
   const hist = new Uint32Array(256), step = Math.max(1, (n / 200000) | 0);
   let cnt = 0;
   for (let i = 0; i < n; i += step) {
     const j = i * 4;
     hist[(data[j] * 77 + data[j + 1] * 150 + data[j + 2] * 29) >> 8]++; cnt++;
   }
-  let acc = 0, p99 = 255;
-  for (let i = 0; i < 256; i++) { acc += hist[i]; if (acc >= cnt * 0.99) { p99 = Math.max(i, 20); break; } }
-  return Math.min(4, 255 / p99);
+  return { hist, cnt };
+}
+function lumPercentile(data, n, q) {
+  const { hist, cnt } = lumHist(data, n);
+  let acc = 0;
+  for (let i = 0; i < 256; i++) { acc += hist[i]; if (acc >= cnt * q) return Math.max(i, 20); }
+  return 255;
 }
 
-// HEAVY stage: runs once per photo. Everything the sliders need is cached here.
+function shrink(a, w, h, k, pw, ph, T) {
+  const o = new T(pw * ph), inv = 1 / (k * k);
+  for (let y = 0; y < ph; y++) for (let x = 0; x < pw; x++) {
+    let s = 0;
+    for (let dy = 0; dy < k; dy++) {
+      const row = (y * k + dy) * w + x * k;
+      for (let dx = 0; dx < k; dx++) s += a[row + dx];
+    }
+    o[y * pw + x] = s * inv;
+  }
+  return o;
+}
+
+// HEAVY stage: once per photo. Everything the sliders need is cached here.
 async function buildCache(b, flat) {
   const { w, h, data } = b, n = w * h;
-  const F0 = [0, 1, 2].map(() => new Uint8ClampedArray(n));   // flattened, sharp
+  const F0 = [0, 1, 2].map(() => new Uint8ClampedArray(n));   // flattened, original detail
   const F1 = [0, 1, 2].map(() => new Uint8ClampedArray(n));   // flattened, denoised
-  const gain = flat ? 1 : autoGain(data, n);
+  const gain = flat ? 1 : Math.min(4, 255 / lumPercentile(data, n, 0.99));
+  const sigma = Math.min(24, Math.max(6, 0.09 * lumPercentile(data, n, 0.8)));
+  const wl = new Float32Array(256);
+  for (let d = 0; d < 256; d++) wl[d] = Math.exp(-(d * d) / (2 * sigma * sigma));
   for (let c = 0; c < 3; c++) {
-    const raw = new Float32Array(n);
-    for (let i = 0, j = c; i < n; i++, j += 4) raw[i] = data[j];
-    const bl = boxBlur(raw, w, h, 1);
-    if (flat) {
-      applyFlat(raw, bl, bgGrid(bl, w, h), w, h, F0[c], F1[c]);
-    } else {
-      for (let i = 0; i < n; i++) { F0[c][i] = raw[i] * gain; F1[c][i] = bl[i] * gain; }
-    }
+    setStatus(`প্রসেসিং হচ্ছে… ${c + 1}/3`);
     await tick();
+    const raw = new Uint8ClampedArray(n);
+    for (let i = 0, j = c; i < n; i++, j += 4) raw[i] = data[j];
+    const bil = bilateral(raw, w, h, wl);
+    if (flat) {
+      applyFlat(raw, bil, bgGrid(bil, w, h), w, h, F0[c], F1[c]);
+    } else {
+      for (let i = 0; i < n; i++) { F0[c][i] = raw[i] * gain; F1[c][i] = bil[i] * gain; }
+    }
   }
+  setStatus("প্রসেসিং হচ্ছে… শেষ ধাপ");
+  await tick();
   const Y = new Float32Array(n);
   for (let i = 0; i < n; i++) Y[i] = (77 * F1[0][i] + 150 * F1[1][i] + 29 * F1[2][i]) / 256;
-  const Yb = boxBlur(Y, w, h, 2);
+  const Yb = boxBlur(Y, w, h, w > 2400 ? 3 : 2);
   const delta = new Int8Array(n);
   for (let i = 0; i < n; i++) {
     const d = Y[i] - Yb[i];
     delta[i] = d > 127 ? 127 : d < -127 ? -127 : Math.round(d);
   }
-  return { F0, F1, delta };
+  // small preview copy (area-averaged) for instant slider feedback
+  const k = Math.max(1, Math.ceil(Math.max(w, h) / PV_SIDE));
+  let pv;
+  if (k === 1) pv = { F0, F1, delta, w, h };
+  else {
+    const pw = Math.floor(w / k), ph = Math.floor(h / k);
+    pv = {
+      F0: F0.map((a) => shrink(a, w, h, k, pw, ph, Uint8ClampedArray)),
+      F1: F1.map((a) => shrink(a, w, h, k, pw, ph, Uint8ClampedArray)),
+      delta: shrink(delta, w, h, k, pw, ph, Int8Array), w: pw, h: ph
+    };
+  }
+  return { F0, F1, delta, pv };
 }
 
 function makeLut(p) {
   const lut = new Uint8ClampedArray(256);
   if (p.mode === "bw") {
-    const t = 175 - p.ct * 15;
+    const t = 175 - p.ct * 15 - p.br * 30;
     for (let i = 0; i < 256; i++) {
       let u = (i - (t - 30)) / 60; u = u < 0 ? 0 : u > 1 ? 1 : u;
       lut[i] = 255 * u * u * (3 - 2 * u);
     }
   } else {
-    // light grey (fold shadows, dust) -> white, text stays dark
-    const white = 255 - 70 * p.ct, black = 10 * p.ct, gamma = 1 + 0.3 * p.ct;
+    const white = 255 - 45 * p.ct, black = 20 * p.ct;
+    const gamma = (1 + 0.6 * p.ct) * Math.pow(2, -p.br);
     for (let i = 0; i < 256; i++) {
       let u = (i - black) / (white - black); u = u < 0 ? 0 : u > 1 ? 1 : u;
       lut[i] = 255 * Math.pow(u, gamma);
@@ -250,19 +306,15 @@ function makeLut(p) {
   return lut;
 }
 
-// LIGHT stage: runs on every slider move (single pass, no blur)
-function render() {
-  if (!cache || !base) return;
-  const { w, h } = base, n = w * h;
-  if (!outImg || outImg.width !== w || outImg.height !== h) outImg = new ImageData(w, h);
-  const o = outImg.data, { F0, F1, delta } = cache;
+const fade = new Int16Array(256);
+for (let v = 0; v < 256; v++) fade[v] = v <= 150 ? 256 : v >= 210 ? 0 : Math.round(256 * (210 - v) / 60);
+
+// LIGHT stage: single pass over pixels, no blur. Sharpening never darkens paper (no halos).
+function renderSrc(src, w, h, img) {
+  const n = w * h, o = img.data, { F0, F1, delta } = src;
   const lut = makeLut(params);
   const dnW = Math.round(params.dn * 256), sd = Math.round(params.sh * 256), gray = params.mode !== "color";
   const a0 = F0[0], a1 = F0[1], a2 = F0[2], b0 = F1[0], b1 = F1[1], b2 = F1[2], keep = 256 - dnW;
-  // Sharpening may darken only pixels that are already dark (text). On paper it
-  // would create dark halos next to fold lines, so its darkening fades out above ~150.
-  const fade = new Int16Array(256);
-  for (let v = 0; v < 256; v++) fade[v] = v <= 150 ? 256 : v >= 210 ? 0 : Math.round(256 * (210 - v) / 60);
   for (let i = 0, j = 0; i < n; i++, j += 4) {
     let r = (a0[i] * keep + b0[i] * dnW) >> 8;
     let g = (a1[i] * keep + b1[i] * dnW) >> 8;
@@ -276,15 +328,33 @@ function render() {
     o[j + 2] = lut[b < 0 ? 0 : b > 255 ? 255 : b];
     o[j + 3] = 255;
   }
+}
+
+function draw(full) {
+  if (!cache || !base) return;
+  let src, w, h, img;
+  if (full) {
+    src = cache; w = base.w; h = base.h;
+    if (!outFull || outFull.width !== w || outFull.height !== h) outFull = new ImageData(w, h);
+    img = outFull;
+  } else {
+    src = cache.pv; w = src.w; h = src.h;
+    if (!outPv || outPv.width !== w || outPv.height !== h) outPv = new ImageData(w, h);
+    img = outPv;
+  }
+  renderSrc(src, w, h, img);
   if (view.width !== w || view.height !== h) { view.width = w; view.height = h; }
-  view.getContext("2d").putImageData(outImg, 0, 0);
+  view.getContext("2d").putImageData(img, 0, 0);
+  fullShown = full;
 }
 /* ---------- end processing ---------- */
 
 function schedule() {
-  if (rafId) return;
-  rafId = requestAnimationFrame(() => { rafId = 0; render(); });
+  if (!rafId) rafId = requestAnimationFrame(() => { rafId = 0; draw(false); });
+  clearTimeout(fullTimer);
+  fullTimer = setTimeout(() => draw(true), 400);
 }
+function ensureFull() { clearTimeout(fullTimer); if (!fullShown) draw(true); }
 
 async function prepare() {
   if (!base || heavyBusy) return;
@@ -295,9 +365,9 @@ async function prepare() {
   await tick();
   try {
     cache = await buildCache(base, params.flat);
-    render();
+    draw(true);
     setButtons(true);
-    setStatus("তৈরি! স্লাইডার নাড়ালে সঙ্গে সঙ্গে বদলাবে।");
+    setStatus("তৈরি! স্লাইডার নাড়িয়ে মিলিয়ে নিন।");
   } catch (e) {
     console.error(e);
     setStatus("সমস্যা হয়েছে (" + e.message + "). রেজোলিউশন 'হালকা' করে আবার চেষ্টা করুন।");
@@ -332,7 +402,7 @@ async function loadFile(file) {
   if (bmp.close) bmp.close();
   base = { w, h, data: ctx.getImageData(0, 0, w, h).data };
   c.width = c.height = 0;
-  outImg = null;
+  outFull = null; outPv = null;
   $("empty").hidden = true;
   view.hidden = false;
   prepare();
@@ -400,7 +470,7 @@ document.querySelectorAll("#modes button").forEach((btn) => {
     schedule();
   };
 });
-[["dn", "dnV"], ["ct", "ctV"], ["sh", "shV"]].forEach(([id, vid]) => {
+[["dn", "dnV"], ["ct", "ctV"], ["sh", "shV"], ["br", "brV"]].forEach(([id, vid]) => {
   const el = $(id);
   el.oninput = () => {
     params[id] = parseFloat(el.value);
@@ -423,12 +493,14 @@ cmp.addEventListener("pointerdown", (e) => { e.preventDefault(); showOrig(true);
 ["pointerup", "pointerleave", "pointercancel"].forEach((ev) => cmp.addEventListener(ev, () => showOrig(false)));
 cmp.addEventListener("contextmenu", (e) => e.preventDefault());
 
-$("jpgBtn").onclick = async () => download(await toJpegBlob(), stamp() + ".jpg");
+$("jpgBtn").onclick = async () => { ensureFull(); download(await toJpegBlob(), stamp() + ".jpg"); };
 $("pdfBtn").onclick = async () => {
+  ensureFull();
   const jpg = new Uint8Array(await (await toJpegBlob()).arrayBuffer());
   download(makePdf(jpg, view.width, view.height), stamp() + ".pdf");
 };
 $("shareBtn").onclick = async () => {
+  ensureFull();
   const blob = await toJpegBlob();
   const file = new File([blob], stamp() + ".jpg", { type: "image/jpeg" });
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
