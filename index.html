@@ -7,189 +7,187 @@
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
   
   :root {
-    --bg: #f4f7fb;
-    --card: #ffffff;
-    --text-main: #1e293b;
+    --bg-main: #f0f4f8;
+    --white: #ffffff;
+    --text-dark: #0f172a;
     --text-muted: #64748b;
-    --primary: #1d4ed8;
-    --primary-light: #eff6ff;
-    --accent: #10b981;
+    --blue-primary: #1e40af;
+    --blue-scan: #274b7e;
+    --blue-light: #e0e7ff;
+    --green-scanner: #4ade80;
   }
   
   * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
-  body { background: var(--bg); color: var(--text-main); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+  body { background: var(--bg-main); color: var(--text-dark); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
   
   /* Header */
-  .header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; background: var(--card); }
-  .header h1 { font-size: 16px; font-weight: 700; color: #0f172a; letter-spacing: 0.5px; }
-  .icon-btn { background: none; border: none; font-size: 24px; color: var(--text-main); cursor: pointer; }
+  .header { display: flex; justify-content: space-between; align-items: center; padding: 20px; background: var(--bg-main); }
+  .header h1 { font-size: 16px; font-weight: 700; color: var(--blue-primary); letter-spacing: 0.5px; margin: 0; }
+  .icon { width: 24px; height: 24px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
   
-  /* Main Content Area */
-  .main-content { flex: 1; overflow-y: auto; padding: 0 20px 100px; display: flex; flex-direction: column; align-items: center; }
+  /* Main Content */
+  .content { flex: 1; display: flex; flex-direction: column; align-items: center; overflow-y: auto; padding-bottom: 90px; }
   
-  /* Camera/Image Stage */
-  .stage-container { position: relative; width: 100%; max-width: 400px; aspect-ratio: 4/5; background: #d1d5db; border-radius: 20px; margin-top: 10px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
-  .stage-container canvas { width: 100%; height: 100%; object-fit: cover; }
-  .empty-state { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--text-muted); }
+  /* Scanner Viewport */
+  .scanner-container { position: relative; width: calc(100% - 40px); max-width: 400px; aspect-ratio: 4/4.5; background: #c2c9d6; border-radius: 24px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.1); margin-bottom: 20px; }
+  .scanner-container canvas { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; }
   
-  /* Scanning Overlay Overlay */
-  .scan-overlay { position: absolute; inset: 20px; border: 3px solid rgba(16, 185, 129, 0.5); border-radius: 12px; pointer-events: none; }
-  .scan-overlay::before, .scan-overlay::after { content: ''; position: absolute; width: 30px; height: 30px; border-color: var(--accent); border-style: solid; }
-  .scan-overlay::before { top: -3px; left: -3px; border-width: 3px 0 0 3px; border-radius: 12px 0 0 0; }
-  .scan-overlay::after { bottom: -3px; right: -3px; border-width: 0 3px 3px 0; border-radius: 0 0 12px 0; }
+  /* Top Tools on Scanner */
+  .scanner-tools { position: absolute; top: 16px; left: 16px; right: 16px; display: flex; justify-content: space-between; align-items: flex-start; color: white; z-index: 10; text-shadow: 0 1px 4px rgba(0,0,0,0.5); }
+  .tool-item { display: flex; flex-direction: column; align-items: center; font-size: 12px; gap: 4px; }
+  .tool-icon { font-size: 20px; }
   
-  /* Top Overlays on Stage */
-  .stage-tools { position: absolute; top: 15px; left: 15px; right: 15px; display: flex; justify-content: space-between; color: white; text-shadow: 0 1px 3px rgba(0,0,0,0.5); font-size: 20px; }
+  /* Green Scanner Overlay */
+  .scan-frame { position: absolute; top: 50px; bottom: 50px; left: 30px; right: 30px; z-index: 5; pointer-events: none; }
+  .corner { position: absolute; width: 40px; height: 40px; border: 4px solid var(--green-scanner); border-radius: 12px; }
+  .corner.tl { top: 0; left: 0; border-right: none; border-bottom: none; }
+  .corner.tr { top: 0; right: 0; border-left: none; border-bottom: none; }
+  .corner.bl { bottom: 0; left: 0; border-right: none; border-top: none; }
+  .corner.br { bottom: 0; right: 0; border-left: none; border-top: none; }
+  .scan-line { position: absolute; top: 50%; left: 0; right: 0; height: 1px; background: var(--green-scanner); box-shadow: 0 0 8px var(--green-scanner); }
   
   /* Status Text */
-  .status-section { text-align: center; margin-top: 20px; }
-  .status-title { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
-  .progress-bar { width: 120px; height: 4px; background: #e2e8f0; margin: 0 auto 12px; border-radius: 2px; overflow: hidden; }
-  .progress-fill { width: 50%; height: 100%; background: var(--primary); }
-  .status-subtitle { font-size: 13px; color: var(--text-muted); }
+  .status-wrap { text-align: center; margin-bottom: 24px; width: 100%; }
+  .status-wrap h2 { font-size: 16px; font-weight: 700; margin-bottom: 12px; }
+  .progress-track { width: 140px; height: 4px; background: #cbd5e1; margin: 0 auto 12px; border-radius: 2px; overflow: hidden; }
+  .progress-fill { width: 50%; height: 100%; background: var(--blue-primary); }
+  .status-wrap p { font-size: 13px; color: var(--text-muted); }
   
-  /* Action Controls */
-  .controls-row { display: flex; justify-content: space-between; align-items: center; width: 100%; max-width: 320px; margin: 30px auto; }
-  .control-item { display: flex; flex-direction: column; align-items: center; gap: 8px; font-size: 12px; color: var(--text-main); font-weight: 600; background: none; border: none; cursor: pointer; }
-  .control-icon { width: 44px; height: 44px; border-radius: 12px; background: var(--primary-light); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 20px; }
-  .scan-btn-large { width: 72px; height: 72px; background: var(--primary); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28px; border: 4px solid var(--primary-light); box-shadow: 0 8px 16px rgba(29, 78, 216, 0.3); }
+  /* Main Controls */
+  .controls { display: flex; justify-content: center; align-items: center; gap: 30px; margin-bottom: 24px; width: 100%; }
+  .action-btn { display: flex; flex-direction: column; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; color: var(--text-dark); background: none; border: none; cursor: pointer; }
+  .icon-box { width: 48px; height: 48px; border-radius: 14px; background: var(--white); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,0.03); }
+  .icon-box svg { width: 24px; height: 24px; stroke: var(--blue-primary); }
   
-  /* Tabs */
-  .tabs { display: flex; gap: 10px; width: 100%; overflow-x: auto; padding: 10px 0; margin-bottom: 20px; scrollbar-width: none; }
-  .tab-btn { padding: 8px 16px; border-radius: 20px; border: none; background: transparent; color: var(--text-muted); font-size: 14px; font-weight: 600; white-space: nowrap; cursor: pointer; }
-  .tab-btn.active { background: var(--primary); color: white; }
+  /* Large Scan Button */
+  .scan-btn-wrapper { display: flex; flex-direction: column; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; }
+  .scan-btn { width: 84px; height: 84px; border-radius: 50%; background: var(--blue-scan); color: white; display: flex; align-items: center; justify-content: center; border: 4px solid var(--white); outline: 4px solid var(--blue-light); box-shadow: 0 8px 20px rgba(39, 75, 126, 0.3); cursor: pointer; }
+  .scan-btn svg { width: 32px; height: 32px; fill: none; stroke: white; stroke-width: 2; }
   
-  /* Bottom Nav */
-  .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; height: 80px; background: var(--card); display: flex; justify-content: space-around; align-items: center; border-top: 1px solid #e2e8f0; border-radius: 24px 24px 0 0; box-shadow: 0 -4px 10px rgba(0,0,0,0.02); }
-  .nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 11px; color: var(--text-muted); text-decoration: none; border: none; background: none; }
-  .nav-item.active { color: var(--primary); }
-  .nav-icon { font-size: 20px; }
+  /* Pills Nav */
+  .pill-nav { display: flex; justify-content: center; gap: 16px; width: 100%; margin-bottom: 10px; }
+  .pill { padding: 6px 16px; border-radius: 20px; font-size: 14px; font-weight: 500; color: var(--text-dark); cursor: pointer; }
+  .pill.active { background: #1a73e8; color: white; }
   
-  /* Hidden Inputs and Adjustments section */
+  /* Bottom Navigation */
+  .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; height: 85px; background: var(--white); display: flex; justify-content: space-around; align-items: center; border-radius: 30px 30px 0 0; box-shadow: 0 -5px 20px rgba(0,0,0,0.04); padding-bottom: 10px; }
+  .nav-item { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; color: var(--text-muted); text-decoration: none; border: none; background: none; }
+  .nav-item.active { color: var(--blue-primary); }
+  .nav-item svg { width: 22px; height: 22px; stroke: currentColor; fill: none; }
+  
+  /* Hidden Inputs for JS Logic */
   input[type=file] { display: none; }
-  .adjustments { width: 100%; max-width: 400px; background: var(--card); padding: 16px; border-radius: 16px; margin-top: 20px; display: none; }
-  .adjustments.show { display: block; }
-  label.s { display: block; font-size: 13px; margin: 10px 0 4px; color: var(--text-muted); font-weight: 600; }
-  label.s b { float: right; color: var(--text-main); }
-  input[type=range] { width: 100%; accent-color: var(--primary); margin-bottom: 10px; }
-  select { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 10px; }
 </style>
 </head>
 <body>
 
   <!-- Header -->
   <header class="header">
-    <button class="icon-btn">☰</button>
+    <svg class="icon" viewBox="0 0 24 24"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
     <h1>IMAGE SCANNER</h1>
-    <button class="icon-btn">⚙️</button>
+    <svg class="icon" viewBox="0 0 24 24"><path d="M12 15a3 3 0 100-6 3 3 0 000 6z"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
   </header>
 
   <!-- Main Workspace -->
-  <main class="main-content">
+  <main class="content">
     
-    <!-- Camera Viewport -->
-    <div class="stage-container" id="stage">
-      <div class="empty-state" id="empty">No Image</div>
+    <!-- Image/Camera Viewport -->
+    <div class="scanner-container" id="stage">
       <canvas id="view" hidden></canvas>
       <canvas id="orig" hidden></canvas>
       
-      <!-- Overlay matching reference -->
-      <div class="scan-overlay"></div>
-      <div class="stage-tools">
-        <span>⚡ Auto</span>
-        <span>🔍</span>
-        <span>⛌</span>
+      <!-- Top Viewport Tools -->
+      <div class="scanner-tools">
+        <div class="tool-item">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+          <span style="line-height:1.2;">Flash<br>Auto</span>
+        </div>
+        <div class="tool-item">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M4 8V6a2 2 0 012-2h2M4 16v2a2 2 0 002 2h2M16 4h2a2 2 0 012 2v2M16 20h2a2 2 0 002-2v-2M9 12a3 3 0 106 0 3 3 0 00-6 0z"/></svg>
+        </div>
+        <div class="tool-item">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M6 6h12v12H6zM6 6V3M6 6H3M18 18v3M18 18h3"/></svg>
+        </div>
+      </div>
+
+      <!-- Green Frame Overlay -->
+      <div class="scan-frame">
+        <div class="corner tl"></div>
+        <div class="corner tr"></div>
+        <div class="corner bl"></div>
+        <div class="corner br"></div>
+        <div class="scan-line"></div>
       </div>
     </div>
 
-    <!-- Status -->
-    <div class="status-section">
-      <div class="status-title" id="status">Scanning Document...</div>
-      <div class="progress-bar"><div class="progress-fill"></div></div>
-      <div class="status-subtitle">Place document inside the frame.</div>
+    <!-- Scanning Status -->
+    <div class="status-wrap">
+      <h2 id="status">Scanning Document...</h2>
+      <div class="progress-track"><div class="progress-fill"></div></div>
+      <p>Place document inside the frame.</p>
     </div>
 
-    <!-- Action Buttons -->
-    <div class="controls-row">
-      <button class="control-item" id="galBtn">
-        <div class="control-icon">🖼️</div>
+    <!-- Main Buttons -->
+    <div class="controls">
+      <button class="action-btn" id="galBtn">
+        <div class="icon-box">
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        </div>
         <span>Gallery</span>
       </button>
       
-      <button class="control-item" id="camBtn" style="border:none; background:none;">
-        <div class="scan-btn-large">📷</div>
-        <span style="margin-top: 8px;">Scan</span>
-      </button>
-
-      <button class="control-item" onclick="document.getElementById('adjPanel').classList.toggle('show')">
-        <div class="control-icon">🎛️</div>
-        <span>Adjust</span>
-      </button>
-    </div>
-
-    <!-- Mode Tabs -->
-    <div class="tabs" id="modes">
-      <button class="tab-btn active" data-m="color">Color</button>
-      <button class="tab-btn" data-m="gray">Enhance (Gray)</button>
-      <button class="tab-btn" data-m="bw">B&W</button>
-    </div>
-
-    <!-- Sliders / Adjustments (Collapsible) -->
-    <div class="adjustments" id="adjPanel">
-      <label class="s">Noise Reduction <b id="dnV">50</b></label>
-      <input type="range" id="dn" min="0" max="1" step="0.05" value="0.5">
-      
-      <label class="s">Contrast <b id="ctV">60</b></label>
-      <input type="range" id="ct" min="0" max="1.5" step="0.05" value="0.6">
-      
-      <label class="s">Sharpness <b id="shV">50</b></label>
-      <input type="range" id="sh" min="0" max="1.5" step="0.05" value="0.5">
-      
-      <label class="s">Resolution</label>
-      <select id="q">
-        <option value="1400">Low (Fast)</option>
-        <option value="2000" selected>Standard</option>
-        <option value="2800">High</option>
-      </select>
-      <div style="display:flex; gap:10px; margin-top:10px;">
-        <button id="cmpBtn" style="flex:1; padding:10px; border-radius:8px; border:1px solid #e2e8f0; background:white;">👁️ Compare</button>
-        <button id="jpgBtn" style="flex:1; padding:10px; border-radius:8px; border:none; background:var(--primary); color:white;">⬇️ JPG</button>
-        <button id="pdfBtn" style="flex:1; padding:10px; border-radius:8px; border:none; background:var(--primary); color:white;">📄 PDF</button>
+      <div class="scan-btn-wrapper">
+        <div class="scan-btn" id="camBtn">
+          <svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        </div>
+        <span>Scan</span>
       </div>
+
+      <button class="action-btn">
+        <div class="icon-box">
+          <svg viewBox="0 0 24 24"><path d="M14.5 2H9.5L8 7.5h8l-1.5-5.5z"/><path d="M8 7.5v6a4 4 0 008 0v-6"/><line x1="12" y1="13.5" x2="12" y2="22"/></svg>
+        </div>
+        <span>Torch</span>
+      </button>
     </div>
 
+    <!-- Tabs -->
+    <div class="pill-nav" id="modes">
+      <div class="pill active" data-m="color">Auto-detect</div>
+      <div class="pill" data-m="gray">Enhance</div>
+      <div class="pill">OCR</div>
+      <div class="pill" data-m="bw">Filter</div>
+    </div>
   </main>
 
-  <!-- Hidden Inputs -->
   <input type="file" id="camInput" accept="image/*" capture="environment">
   <input type="file" id="galInput" accept="image/*">
 
   <!-- Bottom Navigation -->
   <nav class="bottom-nav">
     <button class="nav-item active">
-      <span class="nav-icon">🏠</span>
+      <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
       <span>Home</span>
     </button>
     <button class="nav-item">
-      <span class="nav-icon">📄</span>
+      <svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
       <span>Scans</span>
     </button>
     <button class="nav-item" id="shareBtn">
-      <span class="nav-icon">🔗</span>
+      <svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
       <span>Share</span>
     </button>
     <button class="nav-item">
-      <span class="nav-icon">👤</span>
+      <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
       <span>Profile</span>
     </button>
   </nav>
 
-  <!-- আপনার আগের <script> অংশটি হুবহু এখানে বসিয়ে দিন -->
   <script>
-    // Paste your existing JavaScript logic here exactly as it was in index.html
+    // আপনার আগের <script> সেকশনের লজিক হুবহু এখানে রাখুন
   </script>
 </body>
 </html>
